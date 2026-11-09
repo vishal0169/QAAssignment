@@ -1,0 +1,204 @@
+{
+  "name": "Bonus_UptimeMonitor_VishalKumarYadav",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "d03899ed-479e-49ce-8958-d454b8b312ee",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://demo.realworld.io",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Vishal-Uptime-Monitor/1.0"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "a6fc5a14-6577-47bb-93b2-8b14d79c9754",
+      "name": "Check RealWorld Website",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput",
+      "notes": "Checks the Task 1 RealWorld demo URL. Includes status and headers. Non-2xx responses are returned for IF evaluation; network/timeout errors use the error output."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5a443897-367e-428c-b73d-7613bffbab3c",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a3f54426-e8b6-420b-b3fd-eb3688ea8299",
+      "name": "Is HTTP Status 200?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        760,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ '🚨 WEBSITE DOWN ALERT\\n\\nWebsite: RealWorld Demo\\nURL: https://demo.realworld.io\\nHTTP Status: ' + $json.statusCode + ' ' + ($json.statusMessage || '') + '\\nChecked at: ' + $now.toISO() + '\\n\\nPlease investigate.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "3712fed3-5b6e-4792-bfc8-dd33f777fc7d",
+      "name": "Send Non-200 Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        380
+      ],
+      "notes": "Select your Telegram API credential after importing and replace YOUR_TELEGRAM_CHAT_ID with your chat or group ID."
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ '🚨 WEBSITE CHECK FAILED\\n\\nWebsite: RealWorld Demo\\nURL: https://demo.realworld.io\\nError: ' + ($json.error?.message || $json.message || JSON.stringify($json.error || $json)) + '\\nChecked at: ' + $now.toISO() + '\\n\\nThe request failed before a valid HTTP status could be confirmed.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "e0946446-90f6-44b9-8e40-763f31932f27",
+      "name": "Send Request Error Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        760,
+        540
+      ],
+      "notes": "This branch receives connection, DNS, TLS, and timeout errors. Select your Telegram API credential after importing and replace YOUR_TELEGRAM_CHAT_ID."
+    },
+    {
+      "parameters": {
+        "content": "SETUP AFTER IMPORT\n1. Select your Telegram API credential in both Telegram nodes (create it in n8n Credentials using your BotFather token).\n2. Replace YOUR_TELEGRAM_CHAT_ID in both Telegram nodes.\n3. Confirm the monitored URL is the same app used in Task 1.\n4. Test the healthy path with the live URL, then test failure handling using a temporary invalid URL or a controlled non-200 endpoint.\n5. Save and publish/activate the workflow. Schedule Trigger runs only while the workflow is active.",
+        "height": 250,
+        "width": 430,
+        "color": 5
+      },
+      "id": "4d9f0d5e-09b7-42dd-8ad4-335af3ba3ff3",
+      "name": "Setup Instructions",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        250,
+        40
+      ]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Check RealWorld Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check RealWorld Website": {
+      "main": [
+        [
+          {
+            "node": "Is HTTP Status 200?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Request Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is HTTP Status 200?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send Non-200 Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "11f8e09e-4bf7-4b10-8a2a-c5ca5225d01b",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
